@@ -1,0 +1,105 @@
+name: Build ImmortalWrt x86_64
+
+on:
+  workflow_dispatch:
+
+env:
+  REPO_URL: https://github.com/immortalwrt/immortalwrt
+  REPO_BRANCH: openwrt-24.10
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      actions: write
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Optimize Disk Space
+        uses: hugoalh/disk-space-optimizer-ghaction@v0.8.1
+        with:
+          operate_sudo: "true"
+          apt_prune: "true"
+          apt_clean: "true"
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential subversion git-core libncurses5-dev zlib1g-dev gawk flex quilt libssl-dev xsltproc fop texlive-libs default-jdk time
+          sudo timedatectl set-timezone "$TZ"
+
+      - name: Clone source code
+        run: |
+          git clone --depth=1 $REPO_URL -b $REPO_BRANCH openwrt
+          cd openwrt
+          echo "DATE=$(date "+%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: openwrt/ccache
+          key: openwrt-x86-64-ccache
+          restore-keys: |
+            openwrt-x86-64-
+
+      - name: Run DIY Part 1
+        run: |
+          chmod +x diy-part1.sh
+          ./diy-part1.sh
+
+      - name: Update feeds
+        run: |
+          cd openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Apply config
+        run: |
+          mv .config openwrt/.config
+          chmod +x diy-part2.sh
+          cd openwrt
+          ../diy-part2.sh
+
+      - name: Install feeds
+        run: cd openwrt && ./scripts/feeds install -a
+
+      - name: Download packages
+        run: |
+          cd openwrt
+          make defconfig
+          make download -j8
+
+      - name: Compile firmware
+        id: compile
+        run: |
+          cd openwrt
+          make -j$(nproc) || make -j1 V=s
+          echo "compile_status=success" >> $GITHUB_OUTPUT
+
+      - name: Organize firmware
+        if: success()
+        run: |
+          cd openwrt/bin/targets/*/*
+          rm -rf packages
+          echo "FIRMWARE_DIR=$PWD" >> $GITHUB_ENV
+
+      - name: Upload firmware
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImmortalWrt_x86_64_firmware
+          path: ${{ env.FIRMWARE_DIR }}/*
+
+      - name: Upload to Release
+        if: success()
+        uses: ncipollo/release-action@v1
+        with:
+          name: ImmortalWrt x86_64 ${{ env.DATE }}
+          tag: x86_64
+          artifacts: ${{ env.FIRMWARE_DIR }}/*
+          artifactErrorsFailBuild: true
+          removeArtifacts: true
