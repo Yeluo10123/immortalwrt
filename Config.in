@@ -1,40 +1,46 @@
-# SPDX-License-Identifier: GPL-2.0-only
-#
-# Copyright (C) 2006-2013 OpenWrt.org
+CONFIG_TARGET_x86=y
+CONFIG_TARGET_x86_64=y
+CONFIG_TARGET_x86_64_DEVICE_generic=y
 
-mainmenu "ImmortalWrt Configuration"
+# RTL8111 driver (r8169)
+CONFIG_PACKAGE_kmod-r8169=y
 
-config MODULES
-	modules
-	bool
-	default y
+# LuCI Core
+CONFIG_PACKAGE_luci=y
+CONFIG_PACKAGE_luci-light=y
+# luci-ssl disabled to avoid libustream conflict
+# CONFIG_PACKAGE_luci-ssl is not set
 
-config HAVE_DOT_CONFIG
-	bool
-	default y
+# Themes
+CONFIG_PACKAGE_luci-theme-bootstrap=y
 
-HOST_OS := $(shell, uname)
+# Network - Basic
+CONFIG_PACKAGE_luci-app-firewall=y
+CONFIG_PACKAGE_dnsmasq-full=y
+CONFIG_PACKAGE_ipset=y
+CONFIG_PACKAGE_iptables-mod-conntrack-extra=y
+CONFIG_PACKAGE_iptables-mod-ipopt=y
 
-config HOST_OS_LINUX
-	def_bool $(shell, ./config/check-uname.sh Linux)
+# SmartDNS
+CONFIG_PACKAGE_smartdns=y
+CONFIG_PACKAGE_luci-app-smartdns=y
 
-config HOST_OS_MACOS
-	def_bool $(shell, ./config/check-uname.sh Darwin)
+# OpenClash
+CONFIG_PACKAGE_luci-app-openclash=y
 
-source "target/Config.in"
+# Web Terminal
+CONFIG_PACKAGE_luci-app-ttyd=y
 
-source "config/Config-images.in"
+# System tools
+CONFIG_PACKAGE_htop=y
+CONFIG_PACKAGE_vim-fuller=y
+CONFIG_PACKAGE_tcpdump=y
+CONFIG_PACKAGE_gawk=y
+CONFIG_PACKAGE_bash=y
+CONFIG_PACKAGE_tar=y
+CONFIG_PACKAGE_xz=y
+CONFIG_PACKAGE_unzip=y
+CONFIG_PACKAGE_zlib=y
 
-source "config/Config-build.in"
-
-source "config/Config-devel.in"
-
-source "toolchain/Config.in"
-
-source "target/imagebuilder/Config.in"
-
-source "target/sdk/Config.in"
-
-source "target/toolchain/Config.in"
-
-source "tmp/.config-package.in"
+# Disable IPv6 (as requested by user)
+CONFIG_IPV6=n
